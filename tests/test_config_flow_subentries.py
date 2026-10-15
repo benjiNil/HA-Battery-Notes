@@ -10,6 +10,7 @@ from custom_components.battery_notes.config_flow import calc_config_attributes
 from custom_components.battery_notes.const import (
     CONF_ADVANCED_SETTINGS,
     CONF_BATTERY_INCREASE_THRESHOLD,
+    CONF_BATTERY_LIFETIME,
     CONF_BATTERY_LOW_TEMPLATE,
     CONF_BATTERY_LOW_THRESHOLD,
     CONF_BATTERY_PERCENTAGE_TEMPLATE,
@@ -272,6 +273,26 @@ async def test_create_subentry(
             "entity": "bn_motion-battery",
         }[source_form["step_id"]]
     )
+
+
+async def test_create_subentry_with_battery_lifetime(
+    hass: HomeAssistant,
+    source_form: SubentryFlowResult,
+    selection_input: dict[str, str],
+    source_device: dr.DeviceEntry,
+) -> None:
+    """Test creating a subentry stores the configured battery lifetime."""
+    result = await hass.config_entries.subentries.async_configure(
+        source_form["flow_id"], selection_input
+    )
+    result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], {**deepcopy(BATTERY_INPUT), CONF_BATTERY_LIFETIME: 365.0}
+    )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"][CONF_BATTERY_LIFETIME] == 365
+    assert isinstance(result["data"][CONF_BATTERY_LIFETIME], int)
+    assert result["data"][CONF_DEVICE_ID] == source_device.id
 
 
 @pytest.mark.parametrize(
@@ -565,6 +586,31 @@ async def test_reconfigure(
     assert updated.data == {**mock_subentry.data, **changes}
     assert CONF_NAME not in updated.data
     assert len(mock_config_entry.subentries) == 1
+
+
+async def test_reconfigure_clear_battery_lifetime(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_subentry: ConfigSubentry,
+) -> None:
+    """Test reconfiguring with a zero lifetime removes the saved lifetime."""
+    hass.config_entries.async_update_subentry(
+        mock_config_entry,
+        mock_subentry,
+        data={**mock_subentry.data, CONF_BATTERY_LIFETIME: 30},
+    )
+
+    result = await mock_config_entry.start_subentry_reconfigure_flow(
+        hass, mock_subentry.subentry_id
+    )
+    result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], {**deepcopy(BATTERY_INPUT), CONF_BATTERY_LIFETIME: 0}
+    )
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "reconfigure_successful"
+    updated = mock_config_entry.subentries[mock_subentry.subentry_id]
+    assert CONF_BATTERY_LIFETIME not in updated.data
 
 
 @pytest.mark.parametrize(

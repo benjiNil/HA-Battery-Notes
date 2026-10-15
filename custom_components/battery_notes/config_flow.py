@@ -32,6 +32,7 @@ from .common import get_device_model_id
 from .const import (
     CONF_ADVANCED_SETTINGS,
     CONF_BATTERY_INCREASE_THRESHOLD,
+    CONF_BATTERY_LIFETIME,
     CONF_BATTERY_LOW_TEMPLATE,
     CONF_BATTERY_LOW_THRESHOLD,
     CONF_BATTERY_PERCENTAGE_TEMPLATE,
@@ -345,6 +346,13 @@ def _battery_schema(
             ): selector.NumberSelector(
                 selector.NumberSelectorConfig(min=0, max=99, mode=number_box),
             ),
+            key(
+                vol.Optional,
+                CONF_BATTERY_LIFETIME,
+                default=int(data.get(CONF_BATTERY_LIFETIME, 0)),
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(min=0, max=36500, mode=number_box),
+            ),
             vol.Required(CONF_ADVANCED_SETTINGS): section(
                 vol.Schema(
                     {
@@ -378,6 +386,11 @@ def _apply_battery_input(data: dict[str, Any], user_input: dict[str, Any]) -> No
     data[CONF_BATTERY_INCREASE_THRESHOLD] = int(
         user_input.get(CONF_BATTERY_INCREASE_THRESHOLD, 0)
     )
+    battery_lifetime = int(user_input.get(CONF_BATTERY_LIFETIME, 0))
+    if battery_lifetime > 0:
+        data[CONF_BATTERY_LIFETIME] = battery_lifetime
+    else:
+        data.pop(CONF_BATTERY_LIFETIME, None)
     advanced_input = user_input[CONF_ADVANCED_SETTINGS]
     advanced = data.setdefault(CONF_ADVANCED_SETTINGS, {})
     advanced[CONF_BATTERY_PERCENTAGE_TEMPLATE] = none_if_empty(
