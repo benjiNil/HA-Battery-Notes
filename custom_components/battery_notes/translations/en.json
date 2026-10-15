@@ -12,11 +12,13 @@
                     "battery_quantity": "Battery quantity",
                     "note": "Note",
                     "battery_low_threshold": "Battery low threshold",
-                    "battery_increase_threshold": "Battery increase threshold"
+                    "battery_increase_threshold": "Battery increase threshold",
+                    "battery_lifetime": "Battery lifetime"
                 },
                 "data_description": {
                     "battery_low_threshold": "0 will use the global default threshold.",
-                    "battery_increase_threshold": "The threshold is the difference in increase between previous and current battery level.\n0 will use the global default threshold."
+                    "battery_increase_threshold": "The threshold is the difference in increase between previous and current battery level.\n0 will use the global default threshold.",
+                    "battery_lifetime": "How long this battery is expected to last, in days, after replacement.\nSet to 0 to disable lifetime tracking for this battery note."
                 },
                 "sections": {
                     "advanced_settings": {
@@ -89,11 +91,13 @@
                         "battery_quantity": "Battery quantity",
                         "note": "Note",
                         "battery_low_threshold": "Battery low threshold",
-                        "battery_increase_threshold": "Battery increase threshold"
+                        "battery_increase_threshold": "Battery increase threshold",
+                        "battery_lifetime": "Battery lifetime"
                     },
                     "data_description": {
                         "battery_low_threshold": "0 will use the global default threshold.",
-                        "battery_increase_threshold": "The threshold is the difference in increase between previous and current battery level.\n0 will use the global default threshold."
+                        "battery_increase_threshold": "The threshold is the difference in increase between previous and current battery level.\n0 will use the global default threshold.",
+                        "battery_lifetime": "How long this battery is expected to last, in days, after replacement.\nSet to 0 to disable lifetime tracking for this battery note."
                     },
                     "sections": {
                         "advanced_settings": {
@@ -125,12 +129,14 @@
                         "battery_quantity": "Battery quantity",
                         "note": "Note",
                         "battery_low_threshold": "Battery low threshold",
-                        "battery_increase_threshold": "Battery increase threshold"
+                        "battery_increase_threshold": "Battery increase threshold",
+                        "battery_lifetime": "Battery lifetime"
                     },
                     "data_description": {
                         "name": "Leaving blank will take the name from the source device.",
                         "battery_low_threshold": "0 will use the global default threshold.",
-                        "battery_increase_threshold": "The threshold is the difference in increase between previous and current battery level.\n0 will use the global default threshold."
+                        "battery_increase_threshold": "The threshold is the difference in increase between previous and current battery level.\n0 will use the global default threshold.",
+                        "battery_lifetime": "How long this battery is expected to last, in days, after replacement.\nSet to 0 to disable lifetime tracking for this battery note."
                     },
                     "sections": {
                         "advanced_settings": {
@@ -212,6 +218,17 @@
                     },
                     "battery_low_threshold": {
                         "name": "Battery low threshold"
+                    }
+                }
+            },
+            "battery_lifetime_expired": {
+                "name": "{device_name}Battery lifetime elapsed",
+                "state_attributes": {
+                    "battery_lifetime": {
+                        "name": "Battery lifetime"
+                    },
+                    "battery_lifetime_expires": {
+                        "name": "Battery lifetime expires"
                     }
                 }
             }

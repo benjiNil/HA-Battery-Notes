@@ -36,6 +36,7 @@
       'retain_state': True,
     }),
     'battery_increase_threshold': 30,
+    'battery_lifetime': None,
     'battery_low_threshold': 15,
     'battery_quantity': 2,
     'battery_type': 'CR2032',

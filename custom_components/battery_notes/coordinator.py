@@ -54,6 +54,7 @@ from .const import (
     ATTR_SOURCE_ENTITY_ID,
     CONF_ADVANCED_SETTINGS,
     CONF_BATTERY_INCREASE_THRESHOLD,
+    CONF_BATTERY_LIFETIME,
     CONF_BATTERY_LOW_TEMPLATE,
     CONF_BATTERY_LOW_THRESHOLD,
     CONF_BATTERY_PERCENTAGE_TEMPLATE,
@@ -130,6 +131,7 @@ class BatteryNotesSubentryCoordinator(DataUpdateCoordinator[None]):
     battery_note: str
     battery_increased_threshold: int
     battery_low_threshold: int
+    battery_lifetime: timedelta | None
     battery_low_template: str | None
     battery_percentage_template: str | None
     retain_state: bool = False
@@ -148,7 +150,7 @@ class BatteryNotesSubentryCoordinator(DataUpdateCoordinator[None]):
     _outlier_filter: LowOutlierFilter | None = None
     _link_retry_delay: timedelta = timedelta(minutes=2)
 
-    def __init__(  # noqa: PLR0912
+    def __init__(  # noqa: PLR0912, PLR0915
         self,
         hass: HomeAssistant,
         config_entry: BatteryNotesConfigEntry,
@@ -183,6 +185,14 @@ class BatteryNotesSubentryCoordinator(DataUpdateCoordinator[None]):
 
         self.battery_low_threshold = int(
             self.subentry.data.get(CONF_BATTERY_LOW_THRESHOLD, 0)
+        )
+        configured_lifetime = self.subentry.data.get(CONF_BATTERY_LIFETIME, 0)
+        try:
+            lifetime_days = int(configured_lifetime)
+        except (TypeError, ValueError):
+            lifetime_days = 0
+        self.battery_lifetime = (
+            timedelta(days=lifetime_days) if lifetime_days > 0 else None
         )
 
         if self.battery_low_threshold == 0:

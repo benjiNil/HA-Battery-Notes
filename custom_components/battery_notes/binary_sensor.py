@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 from homeassistant.components.binary_sensor import (
@@ -17,6 +18,7 @@ from homeassistant.const import (
     STATE_UNKNOWN,
 )
 from homeassistant.core import (
+    CALLBACK_TYPE,
     Event,
     HomeAssistant,
     callback,
@@ -33,6 +35,7 @@ from homeassistant.helpers.entity_registry import (
 )
 from homeassistant.helpers.event import (
     EventStateChangedData,
+    async_track_point_in_utc_time,
     async_track_state_change_event,
 )
 from homeassistant.helpers.restore_state import RestoreEntity
@@ -43,6 +46,8 @@ from .const import (
     ATTR_BATTERY_INCREASE_THRESHOLD,
     ATTR_BATTERY_LAST_REPLACED,
     ATTR_BATTERY_LAST_REPORTED,
+    ATTR_BATTERY_LIFETIME,
+    ATTR_BATTERY_LIFETIME_EXPIRES,
     ATTR_BATTERY_LOW_THRESHOLD,
     ATTR_BATTERY_QUANTITY,
     ATTR_BATTERY_TYPE,
@@ -103,13 +108,32 @@ async def async_setup_entry(
             device_class=BinarySensorDeviceClass.BATTERY,
             entity_type="binary_sensor",
         )
+        battery_lifetime_entity_description = BatteryNotesBinarySensorEntityDescription(
+            unique_id_suffix="_battery_lifetime_expired",
+            key="battery_lifetime_expired",
+            translation_key="battery_lifetime_expired",
+            entity_category=EntityCategory.DIAGNOSTIC,
+            device_class=BinarySensorDeviceClass.PROBLEM,
+            entity_type="binary_sensor",
+        )
 
         entities: list[
-            BatteryNotesBatteryLowBinaryTemplateSensor
+            BatteryNotesBatteryLifetimeExpiredSensor
+            | BatteryNotesBatteryLowBinaryTemplateSensor
             | BatteryNotesBatteryWrappedLowSensor
             | BatteryNotesBatteryBinaryLowSensor
             | BatteryNotesBatteryPercentageTemplateLowSensor
         ] = []
+
+        if coordinator.battery_lifetime is not None:
+            entities.append(
+                BatteryNotesBatteryLifetimeExpiredSensor(
+                    hass,
+                    coordinator,
+                    battery_lifetime_entity_description,
+                    f"{subentry.unique_id}{battery_lifetime_entity_description.unique_id_suffix}",
+                )
+            )
 
         if (
             coordinator.battery_low_template
@@ -235,6 +259,99 @@ class BatteryNotesBatteryLowBaseSensor(
         super_attrs = super().extra_state_attributes
         if super_attrs:
             attrs.update(super_attrs)
+        return attrs
+
+
+class BatteryNotesBatteryLifetimeExpiredSensor(BatteryNotesBatteryLowBaseSensor):
+    """Binary sensor that turns on when the configured battery lifetime elapses."""
+
+    _attr_should_poll = False
+    _attr_is_on: bool | None = None
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        coordinator: BatteryNotesSubentryCoordinator,
+        entity_description: BatteryNotesBinarySensorEntityDescription,
+        unique_id: str,
+    ):
+        """Initialize the battery lifetime elapsed sensor."""
+        super().__init__(
+            hass=hass, entity_description=entity_description, coordinator=coordinator
+        )
+        self._attr_unique_id = unique_id
+        self._remove_lifetime_listener: CALLBACK_TYPE | None = None
+
+    async def async_added_to_hass(self) -> None:
+        """Handle added to Hass."""
+        await super().async_added_to_hass()
+        self._update_state_and_schedule()
+
+        @callback
+        def _remove_listener() -> None:
+            if self._remove_lifetime_listener is not None:
+                self._remove_lifetime_listener()
+                self._remove_lifetime_listener = None
+
+        self.async_on_remove(_remove_listener)
+
+    @callback
+    def _handle_lifetime_elapsed(self, _now: datetime) -> None:
+        """Handle the configured lifetime elapsing."""
+        self._remove_lifetime_listener = None
+        self._attr_available = True
+        self._attr_is_on = True
+        self.async_write_ha_state()
+
+    @callback
+    def _update_state_and_schedule(self) -> None:
+        """Refresh state and schedule the next lifetime transition."""
+        if self._remove_lifetime_listener is not None:
+            self._remove_lifetime_listener()
+            self._remove_lifetime_listener = None
+
+        if (
+            self.coordinator.battery_lifetime is None
+            or self.coordinator.last_replaced is None
+        ):
+            self._attr_available = False
+            self._attr_is_on = None
+            self.async_write_ha_state()
+            return
+
+        expires = self.coordinator.last_replaced + self.coordinator.battery_lifetime
+        self._attr_available = True
+        self._attr_is_on = dt_util.utcnow() >= expires
+        if not self._attr_is_on:
+            self._remove_lifetime_listener = async_track_point_in_utc_time(
+                self.hass,
+                self._handle_lifetime_elapsed,
+                expires,
+            )
+        self.async_write_ha_state()
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        self._update_state_and_schedule()
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return true if the configured battery lifetime has elapsed."""
+        return self._attr_is_on
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return the state attributes of the battery lifetime sensor."""
+        attrs = super().extra_state_attributes or {}
+        lifetime = self.coordinator.battery_lifetime
+        assert lifetime is not None
+        attrs[ATTR_BATTERY_LIFETIME] = int(lifetime.total_seconds() // 86400)
+        attrs[ATTR_BATTERY_LIFETIME_EXPIRES] = (
+            self.coordinator.last_replaced + lifetime
+            if self.coordinator.last_replaced
+            else None
+        )
         return attrs
 
 

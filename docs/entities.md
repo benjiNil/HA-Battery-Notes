@@ -78,3 +78,16 @@ If you have specified a manual template then this will be created, reflecting th
 | `device_id`                              | `string` | The device_id of the device                                                        |
 | `device_name`                            | `string` | The name of the device, if you have renamed the battery note it will use this name |
 | `source_entity_id`                       | `string` | The entity_id the battery note is associated with                                  |
+
+## Battery Lifetime Elapsed
+
+`binary_sensor.{{device_name}}_battery_lifetime_expired`
+
+A boolean sensor indicating whether a configured fixed battery lifetime has elapsed since `battery_last_replaced`.
+This entity is only created when a battery lifetime (days) is configured on that battery note.
+When the battery is marked replaced (button or action), the sensor resets and starts timing again.
+
+| <div style="width:200px">Attribute</div> | Type     | Description                                                                        |
+| ---------------------------------------- | -------- | ---------------------------------------------------------------------------------- |
+| `battery_lifetime`                       | `int`    | Configured battery lifetime in days                                                 |
+| `battery_lifetime_expires`               | `string` | The datetime when the configured battery lifetime will elapse                      |
